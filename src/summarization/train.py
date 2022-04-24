@@ -1,5 +1,17 @@
+from accelerate import Accelerator
+
+from datasets import load_dataset, load_metric
+
 import torch
-from torch import nn, optim
+from torch import nn, optim, utils
+
+from transformers import PegasusTokenizer, PegasusForConditionalGeneration#, PegasusConfig
+from transformers import BartTokenizer, BartForConditionalGeneration#, BartConfig
+from transformers import T5Tokenizer, T5ForConditionalGeneration#, T5Config
+from transformers import get_scheduler
+from transformers import DataCollatorForSeq2Seq
+
+import nltk
 
 import numpy as np
 import pandas as pd
@@ -9,141 +21,159 @@ import os
 import random
 import time
 
-from models import get_model
-from utils import NewsHeadlineDataset, transform_text
+def get_model(name):
+    # TODO: Add support for hyperparameters
+    if name == 't5':
+        model = T5ForConditionalGeneration.from_pretrained('t5-base')
+        tokenizer = T5Tokenizer.from_pretrained('t5-base')
+    elif name == 'bart':
+        model = BartForConditionalGeneration.from_pretrained('facebook/bart-base')
+        tokenizer = BartTokenizer.from_pretrained('facebook/bart-base')
+    elif name == 'pegasus':
+        model = PegasusForConditionalGeneration.from_pretrained('google/pegasus-xsum')
+        tokenizer = PegasusTokenizer.from_pretrained('google/pegasus-xsum')
+    else:
+        raise ValueError(f'Unknown model {name}. Must be t5, bart, or pegasus.')
 
-def train(epoch, model, tokenizer, loader, optimizer, device, args):
-	'''Conduct an epoch of training.'''
-	model.train()
-	train_loss = 0
-	start = time.time()
-	for i, (_, article, headline) in enumerate(loader):
-		batch = transform_text(article, headline, tokenizer, args.article_max_len, args.headline_max_len)
-		y = batch['target_ids'].to(device, dtype=torch.long)
-		y_ids = y[:, :-1].contiguous()
-		lm_labels = y[:, 1:].clone().detach()
-        lm_labels[y[:, 1:] == tokenizer.pad_token_id] = -100
-        ids = batch['source_ids'].to(device, dtype=torch.long)
-        mask = batch['source_mask'].to(device, dtype=torch.long)
+    return (model, tokenizer)
 
-        outputs = model(input_ids=ids, attention_mask=mask, decoder_input_ids=y_ids, lm_labels=lm_labels)
-        loss = outputs[0]
+def preprocess_text(examples, tokenizer):
+    model_inputs = tokenizer(examples['content'], max_length=args.article_max_len, truncation=True)
+    
+    # Set up the tokenizer for targets
+    with tokenizer.as_target_tokenizer():
+        labels = tokenizer(examples['title'], max_length=args.headline_max_len, truncation=True)
 
-        elapsed_time = time.time() - start
-        train_loss += loss.item()
+    model_inputs["labels"] = labels["input_ids"]
+    return model_inputs
 
-        if i % 100 == 0:
-        	print(f'Train - [EPOCH]: {epoch:<3}\t[LOSS]: {loss.item():.3f}\t[ELAPSED]: {elapsed_time:.2f}s')
+def postprocess_text(preds, labels):
+    preds = [pred.strip() for pred in preds]
+    labels = [label.strip() for label in labels]
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+    # ROUGE expects a newline after each sentence
+    preds = ["\n".join(nltk.sent_tokenize(pred)) for pred in preds]
+    labels = ["\n".join(nltk.sent_tokenize(label)) for label in labels]
 
-	train_duration = time.time() - start
-	train_loss /= len(loader)
-	return {
-		'train_duration': train_duration,
-		'train_loss': np.inf,
-		'train_rogue': np.inf,
-		'train_bleu': np.inf,
-		'train_sensationalism': np.inf,
-		'train_bias': np.inf
-	}
-
-def validate(epoch, model, tokenizer, loader, device, args):
-	'''Conduct an epoch of validation.'''
-	model.eval()
-	with torch.no_grad():
-		val_loss = 0
-		start = time.time()
-		for i, (_, article, headline) in enumerate(loader):
-			batch = transform_text(article, headline, tokenizer, args.article_max_len, args.headline_max_len)
-			y = batch['target_ids'].to(device, dtype=torch.long)
-		    # --------------------------------------------------
-			# Keep the following for calculating validation loss?
-			y_ids = y[:, :-1].contiguous()
-			lm_labels = y[:, 1:].clone().detach()
-		    lm_labels[y[:, 1:] == tokenizer.pad_token_id] = -100
-		    # --------------------------------------------------
-			ids = batch['source_ids'].to(device, dtype=torch.long)
-	        mask = batch['source_mask'].to(device, dtype=torch.long)
-
-			outputs = model(input_ids=ids, attention_mask=mask, decoder_input_ids=y_ids, lm_labels=lm_labels)
-		    loss = outputs[0]
-
-		    elapsed_time = time.time() - start
-		    train_loss += loss.item()
-
-		    if i % 100 == 0:
-		    	print(f'Validate - [EPOCH]: {epoch:<3}\t[LOSS]: {loss.item():.3f}\t[ELAPSED]: {elapsed_time:.2f}s')
-
-	train_duration = time.time() - start
-	train_loss /= len(loader)
-	return {
-		'train_duration': train_duration,
-		'train_loss': np.inf,
-		'train_rogue': np.inf,
-		'train_bleu': np.inf,
-		'train_sensationalism': np.inf,
-		'train_bias': np.inf
-	}
-
-def test(model, tokenizer, loader):
-	'''Test the model.''' 
-	pass
+    return preds, labels
 
 def run(args):
-	# Set seeds for reproducibility
-	torch.manual_seed(args.seed)
-	np.random.seed(args.seed)
-	random.seed(args.seed)
+    # Set seeds for reproducibility
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+    random.seed(args.seed)
 
-	# Get model and tokenizer
-	device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-	model, tokenizer = get_model(args.model)
-	model = model.to(device)
+    # Get model and tokenizer
+    print('Loading model...')
+    start = time.time()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model, tokenizer = get_model(args.model)
+    model = model.to(device)
+    elapsed = time.time() - start
+    print('Done in {:.2f}s.'.format(elapsed))
 
-	# Setup datasets
-	train_dataset = NewsHeadlineDataset(split='train')
-	val_dataset = NewsHeadlineDataset(split='val')
-	test_dataset = NewsHeadlineDataset(split='test')
+    # Setup datasets
+    print('Setting up datasets...')
+    start = time.time()
+    data_files = {split: os.path.join(os.getcwd(), 'data', '{}.csv'.format(split)) for split in ['train', 'val', 'test']}
+    newsheadlines_dataset = load_dataset('csv', data_files=data_files)
+    newsheadlines_dataset = newsheadlines_dataset.map(lambda x: preprocess_text(x, tokenizer), batched=True)
+    newsheadlines_dataset.set_format(type='torch', columns=['input_ids', 'labels', 'attention_mask'])    
+    elapsed = time.time() - start
+    print('Done in {:.2f}s.'.format(elapsed))
 
-	# Setup dataloaders
-	train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-	val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
-	test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
+    # Setup dataloaders
+    collate_fn = DataCollatorForSeq2Seq(tokenizer, model=model)
+    train_dataloader = torch.utils.data.DataLoader(newsheadlines_dataset['train'], batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
+    eval_dataloader = torch.utils.data.DataLoader(newsheadlines_dataset[args.split], batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
 
-	optimizer = optim.AdamW(model.parameters(), lr=args.learning_rate)
+    optimizer = optim.AdamW(model.parameters(), lr=args.learning_rate)
 
-	# Setup result logging
-	train_results = []
-	val_results = []
+    # Setup Accelerator
+    accelerator = Accelerator()
+    model, optimizer, train_dataloader, eval_dataloader = accelerator.prepare(model, optimizer, train_dataloader, eval_dataloader)
 
-	# Train
-	for epoch in range(args.epochs):
-		train_result = train(epoch, model, tokenizer, train_loader, optimizer, device, args)
-		train_results.append(train_result)
+    # Setup LR Scheduler
+    num_training_steps = args.epochs * len(train_dataloader)
+    lr_scheduler = get_scheduler("linear", optimizer=optimizer, num_warmup_steps=0, num_training_steps=num_training_steps)
 
-	if args.tuning: # if tuning mode, only see validation set
-		for epoch in range(args.epochs):
-			val_result = validate(epoch, model, tokenizer, val_loader, device, args)
-			val_results.append(val_result)
+    # Setup rouge
+    rouge_score = load_metric("rouge")
 
-	else: # if not tuning mode, checking model performance against unseen test set
-		test_result = test(model, tokenizer, test_loader)
+    # Training Loop
+    print('Training...')
+    results = []
+    start = time.time()
+    for epoch in range(args.epochs):
+        # Train for an epoch
+        model.train()
+        average_loss = 0
+        for step, batch in enumerate(train_dataloader):
+            outputs = model(**batch)
+            loss = outputs.loss
+            average_loss += loss.item()
+            optimizer.zero_grad()
+            accelerator.backward(loss)
+            optimizer.step()
+            lr_scheduler.step()
+
+        average_loss /= len(train_dataloader)
+
+        # Evaluate for an epoch
+        model.eval()
+        for step, batch in enumerate(eval_dataloader):
+            with torch.no_grad():
+                generated_tokens = accelerator.unwrap_model(model).generate(batch["input_ids"], attention_mask=batch["attention_mask"])
+
+                generated_tokens = accelerator.pad_across_processes(generated_tokens, dim=1, pad_index=tokenizer.pad_token_id)
+                labels = batch["labels"]
+
+                # If we did not pad to max length, we need to pad the labels too
+                labels = accelerator.pad_across_processes(batch["labels"], dim=1, pad_index=tokenizer.pad_token_id)
+
+                generated_tokens = accelerator.gather(generated_tokens).cpu().numpy()
+                labels = accelerator.gather(labels).cpu().numpy()
+
+                # Replace -100 in the labels as we can't decode them
+                labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
+                if isinstance(generated_tokens, tuple):
+                    generated_tokens = generated_tokens[0]
+                
+                decoded_preds = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
+                decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+
+                decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
+
+                rouge_score.add_batch(predictions=decoded_preds, references=decoded_labels)
+
+        # Compute metrics
+        result = rouge_score.compute()
+        # Extract the median ROUGE scores
+        result = {key: value.mid.fmeasure * 100 for key, value in result.items()}
+        result = {k: round(v, 4) for k, v in result.items()}
+        result['loss'] = average_loss
+        result['epoch'] = epoch
+        print(f"Epoch {epoch}:", result)
+        results.append(result)
+
+    elapsed = time.time() - start
+    print('Done in {:.2f}s.'.format(elapsed))
+    df = pd.DataFrame(results)
+    df.to_csv(args.results_name)
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser(description='Fine-tune a summarization model.')
-	parser.add_argument('--epochs', type=int, help='number of training epochs')
-	parser.add_argument('--model', type=str, help='base model', choices=['bart', 'pegasus', 't5'])
-	parser.add_argument('--batch_size', type=int, help='batch size (per gpu)')
-	parser.add_argument('--learning_rate', type=int, help='learning_rate')
-	parser.add_argument('--article_max_len', type=int, help='article maximum length')
-	parser.add_argument('--headline_max_len', type=int, help='headline maximum length')
-	parser.add_argument('--tuning', action='store_true', help='set to hyperparameter tuning mode')
-	parser.add_argument('--seed', type=int, help='random seed for reproducibility')
-	# TODO: Add support for hyperparameters
-	
-	args = parser.parse_args()
+    parser = argparse.ArgumentParser(description='Fine-tune a summarization model.')
+    parser.add_argument('--epochs', type=int, help='number of training epochs')
+    parser.add_argument('--model', type=str, help='base model', choices=['bart', 'pegasus', 't5'])
+    parser.add_argument('--batch_size', type=int, help='batch size (per gpu)')
+    parser.add_argument('--learning_rate', type=float, help='learning_rate')
+    parser.add_argument('--article_max_len', type=int, help='article maximum length')
+    parser.add_argument('--headline_max_len', type=int, help='headline maximum length')
+    parser.add_argument('--split', type=str, help='dataset split to evaluate on', choices=['val', 'test'])
+    parser.add_argument('--seed', type=int, help='random seed for reproducibility', default=0)
+    parser.add_argument('--results_name', type=str, help='name of results CSV file')
+    # TODO: Add support for hyperparameters
+    
+    args = parser.parse_args()
 
-	run(args)
+    run(args)
