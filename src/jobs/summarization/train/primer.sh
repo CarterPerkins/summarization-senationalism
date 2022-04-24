@@ -17,8 +17,8 @@ seed=$8
 
 jobname=T_${model}_${batch_size}_${article_max_len}_${headline_max_len}
 
-file='out/${jobname}'
-error='${file}.err'
-out='${file}.out'
+file=out/${jobname}
+error=${file}.err
+out=${file}.out
 
 sbatch --mem=${memory}GB --time=$duration --job-name=$jobname --error=${error} --output=${out} --cpus-per-task=$cpus --nodes=$nodes --gres=$gres ./jobs/summarization/train/runner.sh $epochs $model $batch_size $lr $article_max_len $headline_max_len $split $seed $file

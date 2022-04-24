@@ -127,7 +127,7 @@ def run(args):
             average_batch_time += time.time() - batch_start
 
         average_loss /= len(train_dataloader)
-        average_batch_time /= len(train_dataloader
+        average_batch_time /= len(train_dataloader)
 
         # Evaluate for an epoch
         model.eval()
@@ -161,8 +161,9 @@ def run(args):
         # Extract the median ROUGE scores
         result = {key: value.mid.fmeasure * 100 for key, value in result.items()}
         result = {k: round(v, 4) for k, v in result.items()}
-        result['loss'] = average_loss
+        result['batch_loss'] = average_loss
         result['epoch'] = epoch
+        result['batch_time'] = average_batch_time
         print(f"Epoch {epoch}:", result)
         results.append(result)
 
@@ -170,6 +171,8 @@ def run(args):
     print('Done in {:.2f}s.'.format(elapsed))
     df = pd.DataFrame(results)
     df.to_csv(args.results_name + '.csv')
+    tf = pd.DataFrame([vars(args)])
+    tf.to_csv(args.results_name + '.params')
     accelerator.wait_for_everyone()
     unwrapped_model = accelerator.unwrap_model(model)
     accelerator.save(unwrapped_model.state_dict(), args.results_name + '.pt')
