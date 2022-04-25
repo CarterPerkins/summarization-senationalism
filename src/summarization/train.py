@@ -104,7 +104,7 @@ def run(args):
     lr_scheduler = get_scheduler("linear", optimizer=optimizer, num_warmup_steps=0, num_training_steps=num_training_steps)
 
     # Setup rouge
-    rouge_score = load_metric("rouge")
+    rouge_score = load_metric("rouge", experiment_id=args.results_name, num_process=4)
 
     # Training Loop
     print('Training...')
