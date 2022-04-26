@@ -168,7 +168,6 @@ def run(args):
 
         # Compute metrics
         # Extract the median ROUGE scores
-<<<<<<< HEAD
         result = {}
         result['rougeL'] = median_rouge
         result['loss'] = average_loss
