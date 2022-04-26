@@ -1,6 +1,8 @@
 from accelerate import Accelerator
 
-from datasets import load_dataset, load_metric
+from datasets import load_dataset
+
+from rouge_score import rouge_scorer
 
 import torch
 from torch import nn, optim, utils
@@ -39,7 +41,7 @@ def get_model(name):
 
 def preprocess_text(examples, tokenizer):
     model_inputs = tokenizer(examples['content'], max_length=args.article_max_len, truncation=True)
-    
+
     # Set up the tokenizer for targets
     with tokenizer.as_target_tokenizer():
         labels = tokenizer(examples['title'], max_length=args.headline_max_len, truncation=True)
@@ -78,7 +80,7 @@ def run(args):
     data_files = {split: os.path.join(os.getcwd(), 'data', '{}.csv'.format(split)) for split in ['train', 'val', 'test']}
     newsheadlines_dataset = load_dataset('csv', data_files=data_files)
     newsheadlines_dataset = newsheadlines_dataset.map(lambda x: preprocess_text(x, tokenizer), batched=True)
-    newsheadlines_dataset.set_format(type='torch', columns=['input_ids', 'labels', 'attention_mask'])    
+    newsheadlines_dataset.set_format(type='torch', columns=['input_ids', 'labels', 'attention_mask'])
     elapsed = time.time() - start
     print('Done in {:.2f}s.'.format(elapsed))
 
@@ -97,13 +99,15 @@ def run(args):
     num_training_steps = args.epochs * len(train_dataloader)
     lr_scheduler = get_scheduler("linear", optimizer=optimizer, num_warmup_steps=0, num_training_steps=num_training_steps)
 
-    # Setup rouge
-    rouge_score = load_metric("rouge")
+    # Setup rouge 1872093.5000
+    scorer = rouge_scorer.RougeScorer(['rougeL', 'rougeLsum'], use_stemmer=True)
+    #rouge_score = load_metric("rouge")
 
     # Training Loop
     print('Training...')
     results = []
     start = time.time()
+
     for epoch in range(args.epochs):
         # Train for an epoch
         model.train()
@@ -138,19 +142,24 @@ def run(args):
                 labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
                 if isinstance(generated_tokens, tuple):
                     generated_tokens = generated_tokens[0]
-                
+
                 decoded_preds = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
                 decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
                 decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
 
-                rouge_score.add_batch(predictions=decoded_preds, references=decoded_labels)
+                rougeL_vals = []
+                for pred, label in zip(decoded_preds, decoded_labels):
+                    scores = scorer.score(pred, label)
+                    rougeL_vals.append(scores['rougeL'].fmeasure)
+
+                median_rouge = np.median(np.array(rougeL_vals))
+                #rouge_score.add_batch(predictions=decoded_preds, references=decoded_labels)
 
         # Compute metrics
-        result = rouge_score.compute()
         # Extract the median ROUGE scores
-        result = {key: value.mid.fmeasure * 100 for key, value in result.items()}
-        result = {k: round(v, 4) for k, v in result.items()}
+        result = {}
+        result['rougeL'] = median_rouge
         result['loss'] = average_loss
         result['epoch'] = epoch
         print(f"Epoch {epoch}:", result)
@@ -163,17 +172,17 @@ def run(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Fine-tune a summarization model.')
-    parser.add_argument('--epochs', type=int, help='number of training epochs')
+    parser.add_argument('--epochs', type=int, help='number of training epochs', default=1)
     parser.add_argument('--model', type=str, help='base model', choices=['bart', 'pegasus', 't5'])
-    parser.add_argument('--batch_size', type=int, help='batch size (per gpu)')
-    parser.add_argument('--learning_rate', type=float, help='learning_rate')
-    parser.add_argument('--article_max_len', type=int, help='article maximum length')
-    parser.add_argument('--headline_max_len', type=int, help='headline maximum length')
+    parser.add_argument('--batch_size', type=int, help='batch size (per gpu)', default=8)
+    parser.add_argument('--learning_rate', type=float, help='learning_rate', default=5e-6)
+    parser.add_argument('--article_max_len', type=int, help='article maximum length', default=16)
+    parser.add_argument('--headline_max_len', type=int, help='headline maximum length', default=16)
     parser.add_argument('--split', type=str, help='dataset split to evaluate on', choices=['val', 'test'])
     parser.add_argument('--seed', type=int, help='random seed for reproducibility', default=0)
-    parser.add_argument('--results_name', type=str, help='name of results CSV file')
+    parser.add_argument('--results_name', type=str, help='name of results CSV file', default='foo')
     # TODO: Add support for hyperparameters
-    
+
     args = parser.parse_args()
 
     run(args)
