@@ -78,9 +78,15 @@ def run(args):
     print('Setting up datasets...')
     start = time.time()
     data_files = {split: os.path.join(os.getcwd(), 'data', '{}.csv'.format(split)) for split in ['train', 'val', 'test']}
+    print('\tLoading files...', end=' ')
     newsheadlines_dataset = load_dataset('csv', data_files=data_files)
-    newsheadlines_dataset = newsheadlines_dataset.map(lambda x: preprocess_text(x, tokenizer), batched=True)
+    print('Done.')
+    print('\tPreprocessing texts...', end=' ')
+    newsheadlines_dataset = newsheadlines_dataset.map(lambda x: preprocess_text(x, tokenizer), batched=True, num_proc=4)
+    print('Done.')
+    print('\tSetting format...', end=' ')
     newsheadlines_dataset.set_format(type='torch', columns=['input_ids', 'labels', 'attention_mask'])
+    print('Done.')
     elapsed = time.time() - start
     print('Done in {:.2f}s.'.format(elapsed))
 
@@ -99,7 +105,7 @@ def run(args):
     num_training_steps = args.epochs * len(train_dataloader)
     lr_scheduler = get_scheduler("linear", optimizer=optimizer, num_warmup_steps=0, num_training_steps=num_training_steps)
 
-    # Setup rouge 1872093.5000
+    # Setup rouge
     scorer = rouge_scorer.RougeScorer(['rougeL', 'rougeLsum'], use_stemmer=True)
     #rouge_score = load_metric("rouge")
 
@@ -112,7 +118,9 @@ def run(args):
         # Train for an epoch
         model.train()
         average_loss = 0
+        average_batch_time = 0
         for step, batch in enumerate(train_dataloader):
+            batch_start = time.time()
             outputs = model(**batch)
             loss = outputs.loss
             average_loss += loss.item()
@@ -120,8 +128,10 @@ def run(args):
             accelerator.backward(loss)
             optimizer.step()
             lr_scheduler.step()
+            average_batch_time += time.time() - batch_start
 
         average_loss /= len(train_dataloader)
+        average_batch_time /= len(train_dataloader)
 
         # Evaluate for an epoch
         model.eval()
@@ -158,17 +168,24 @@ def run(args):
 
         # Compute metrics
         # Extract the median ROUGE scores
+<<<<<<< HEAD
         result = {}
         result['rougeL'] = median_rouge
         result['loss'] = average_loss
         result['epoch'] = epoch
+        result['batch_time'] = average_batch_time
         print(f"Epoch {epoch}:", result)
         results.append(result)
 
     elapsed = time.time() - start
     print('Done in {:.2f}s.'.format(elapsed))
     df = pd.DataFrame(results)
-    df.to_csv(args.results_name)
+    df.to_csv(args.results_name + '.csv')
+    tf = pd.DataFrame([vars(args)])
+    tf.to_csv(args.results_name + '.params')
+    accelerator.wait_for_everyone()
+    unwrapped_model = accelerator.unwrap_model(model)
+    accelerator.save(unwrapped_model.state_dict(), args.results_name + '.pt')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Fine-tune a summarization model.')
