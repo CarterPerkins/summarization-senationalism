@@ -106,7 +106,7 @@ def run(args):
     lr_scheduler = get_scheduler("linear", optimizer=optimizer, num_warmup_steps=0, num_training_steps=num_training_steps)
 
     # Setup rouge
-    scorer = rouge_scorer.RougeScorer(['rougeL', 'rougeLsum'], use_stemmer=True)
+    scorer = rouge_scorer.RougeScorer(['rougeL', 'rouge1', 'rouge2'], use_stemmer=True)
     #rouge_score = load_metric("rouge")
 
     # Training Loop
@@ -159,17 +159,25 @@ def run(args):
                 decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
 
                 rougeL_vals = []
+                rouge1_vals = []
+                rouge2_vals = []
                 for pred, label in zip(decoded_preds, decoded_labels):
                     scores = scorer.score(pred, label)
                     rougeL_vals.append(scores['rougeL'].fmeasure)
+                    rouge1_vals.append(scores['rouge1'].fmeasure)
+                    rouge2_vals.append(scores['rouge2'].fmeasure)
 
-                median_rouge = np.median(np.array(rougeL_vals))
+                median_rougeL = np.median(np.array(rougeL_vals))
+                median_rouge1 = np.median(np.array(rouge1_vals))
+                median_rouge2 = np.median(np.array(rouge2_vals))
                 #rouge_score.add_batch(predictions=decoded_preds, references=decoded_labels)
 
         # Compute metrics
         # Extract the median ROUGE scores
         result = {}
-        result['rougeL'] = median_rouge
+        result['rougeL'] = median_rougeL
+        result['rouge1'] = median_rouge1
+        result['rouge2'] = median_rouge2
         result['loss'] = average_loss
         result['epoch'] = epoch
         result['batch_time'] = average_batch_time
