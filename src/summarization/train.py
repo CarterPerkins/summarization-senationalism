@@ -82,7 +82,7 @@ def run(args):
     newsheadlines_dataset = load_dataset('csv', data_files=data_files)
     print('Done.')
     print('\tPreprocessing texts...', end=' ')
-    newsheadlines_dataset = newsheadlines_dataset.map(lambda x: preprocess_text(x, tokenizer), batched=True, num_proc=4)
+    newsheadlines_dataset = newsheadlines_dataset.map(lambda x: preprocess_text(x, tokenizer), batched=True, keep_in_memory=True)
     print('Done.')
     print('\tSetting format...', end=' ')
     newsheadlines_dataset.set_format(type='torch', columns=['input_ids', 'labels', 'attention_mask'])

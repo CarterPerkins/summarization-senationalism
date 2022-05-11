@@ -1,10 +1,10 @@
 #!/bin/bash
 
-memory=32
-duration='24:00:00'
+memory=128
+duration='96:00:00'
 nodes=1
 cpus=4
-gres='gpu:rtx8000:1'
+gres='gpu:v100:1'
 
 epochs=$1
 model=$2
