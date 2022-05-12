@@ -37,7 +37,7 @@ def run(args):
     # Setup data
     df = pd.read_csv(os.path.join(os.getcwd(), 'data', 'test.csv'))
     df = df.rename(columns={'title': 'headline', 'content': 'article'})
-    df = df.head(10)
+    print(df.shape)
     headline_max_len = int(params['headline_max_len'])
     article_max_len = int(params['article_max_len'])
     filename = params['results_name']
@@ -53,6 +53,7 @@ def run(args):
     df.to_csv(filename + '.test', index=False)
     elapsed = time.time() - start
     print('Done in {:.3f}s.'.format(elapsed))
+    print(df.shape)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate headlines on test dataset for a model.')
