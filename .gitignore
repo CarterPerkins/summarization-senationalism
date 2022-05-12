@@ -134,3 +134,4 @@ dmypy.json
 src/out/*
 src/out/
 
+.DS_Store
