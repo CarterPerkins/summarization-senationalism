@@ -134,4 +134,8 @@ dmypy.json
 src/out/*
 src/out/
 
+# MACOSX
 .DS_Store
+
+# Models
+*.pt
