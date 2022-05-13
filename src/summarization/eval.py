@@ -2,9 +2,9 @@ import pandas as pd
 
 import torch
 
-from transformers import PegasusTokenizer, PegasusForConditionalGeneration#, PegasusConfig
-from transformers import BartTokenizer, BartForConditionalGeneration#, BartConfig
-from transformers import T5Tokenizer, T5ForConditionalGeneration#, T5Config
+from transformers import PegasusTokenizer, PegasusForConditionalGeneration
+from transformers import BartTokenizer, BartForConditionalGeneration
+from transformers import T5Tokenizer, T5ForConditionalGeneration
 from transformers import pipeline
 
 import argparse
@@ -12,7 +12,6 @@ import os
 import time
 
 def get_model(name):
-    # TODO: Add support for hyperparameters
     if name == 't5':
         model = T5ForConditionalGeneration.from_pretrained('t5-base')
         tokenizer = T5Tokenizer.from_pretrained('t5-base')
@@ -45,7 +44,7 @@ def run(args):
     article_max_len = int(params['article_max_len'])
     filename = params['results_name']
 
-    # Truncate articles to fit max ar
+    # Truncate articles to fit max article len
     articles = df.article.apply(lambda x: x[:article_max_len]).to_list()
     start = time.time()
     headline_generator = pipeline('summarization', model=model, tokenizer=tokenizer, device=0)

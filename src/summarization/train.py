@@ -7,9 +7,9 @@ from rouge_score import rouge_scorer
 import torch
 from torch import nn, optim, utils
 
-from transformers import PegasusTokenizer, PegasusForConditionalGeneration#, PegasusConfig
-from transformers import BartTokenizer, BartForConditionalGeneration#, BartConfig
-from transformers import T5Tokenizer, T5ForConditionalGeneration#, T5Config
+from transformers import PegasusTokenizer, PegasusForConditionalGeneration
+from transformers import BartTokenizer, BartForConditionalGeneration
+from transformers import T5Tokenizer, T5ForConditionalGeneration
 from transformers import get_scheduler
 from transformers import DataCollatorForSeq2Seq
 
@@ -24,7 +24,6 @@ import random
 import time
 
 def get_model(name):
-    # TODO: Add support for hyperparameters
     if name == 't5':
         model = T5ForConditionalGeneration.from_pretrained('t5-base')
         tokenizer = T5Tokenizer.from_pretrained('t5-base')
@@ -205,7 +204,6 @@ if __name__ == '__main__':
     parser.add_argument('--split', type=str, help='dataset split to evaluate on', choices=['val', 'test'])
     parser.add_argument('--seed', type=int, help='random seed for reproducibility', default=0)
     parser.add_argument('--results_name', type=str, help='name of results CSV file', default='foo')
-    # TODO: Add support for hyperparameters
 
     args = parser.parse_args()
 
