@@ -29,9 +29,12 @@ def get_model(name):
 
 def run(args):
     params = pd.read_csv(args.params).loc[0]
-
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(device)
     model, tokenizer = get_model(params['model'])
-    model.load_state_dict(torch.load(args.model_path, map_location=torch.device('cpu')))
+    model = model.to(device)
+
+    model.load_state_dict(torch.load(args.model_path))
     model.eval()
 
     # Setup data
@@ -45,7 +48,7 @@ def run(args):
     # Truncate articles to fit max ar
     articles = df.article.apply(lambda x: x[:article_max_len]).to_list()
     start = time.time()
-    headline_generator = pipeline('summarization', model=model, tokenizer=tokenizer)
+    headline_generator = pipeline('summarization', model=model, tokenizer=tokenizer, device=0)
     out = headline_generator(articles, max_length=headline_max_len)
     out = list(map(lambda x: x['summary_text'], out))
 
