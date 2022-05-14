@@ -5,7 +5,7 @@ A study of gender bias and sensationalism on summarization models fine-tuned for
 
 ## Project Description
 
-TODO: Write
+This project examines the relationship between a news article and its headline by understanding the importance of gender bias and sensational words. This build upon the article *When Women Make Headlines*[^1] where the authors compared the usage of sensational words in headlines about women to headlines about other topics. We extend their analysis by looking further into machine generated headlines and the articles themselves in order to understand potential biases in summarization models.
 
 ---
 
@@ -16,14 +16,7 @@ This table descibe the repository structure.
 | **Directory** | **Description** |
 | --- | --- |
 | `src/` | Contains source code for fine-tuning summarization models for headline generation, collecting sentiment and polarization data of headlines, and NYU HPC Greene SLURM jobs scripts. |
-
-TODO: Add figures
-
----
-
-## Observations
-
-TODO: Write
+| `figures/` | Contains figures for slides and observations. |
 
 ---
 
@@ -56,6 +49,7 @@ Available as `pip` and/or `conda` installations:
 * `numpy`
 * `pandas`
 * `nltk`
+* `matplotlib`
 
 NLTK and certain transformer models may require additional installations. Follow error outputs to install.
 
@@ -76,10 +70,41 @@ NLTK and certain transformer models may require additional installations. Follow
 4. Run `./jobs/summarization/eval/batch.sh` to enqueue the SLURM jobs.
 5. Generated files will be located in `src/out/`.
 
+
+## Observations
+
+
+### Summarization Observations
+
+#### Training Loss
+
+![Training Loss](figures/TrainingLoss.svg)
+
+* Doubling input article size of BART models had a negligible effect on loss convergence.
+* The models have a similar rate of convegence, but vary in the loss convergence value.
+
+#### Training Batch Time
+
+![Training Batch Time](figures/TrainingBatchTime.svg)
+
+* Doubling input article size lead to a ~1.5x increase for BART and a ~1.8x increase for T5.
+* PEGASUS is the slowest model to train, and the previous observation explains why the model did not train in time.
+
+#### Validation Median RougeL
+
+![BART Median RougeL](figures/BARTValidationRougeL.svg)
+
+![T5 Median RougeL](figures/T5ValidationRougeL.svg)
+
+![PEGASUS Median RougeL](figures/PEGASUSValidationRougeL.svg)
+
+* Median RougeL is noisy which can potentially be partially attributed to the small batch size.
+* Doubling input article size leads to higher and more consistent RougeL scores.
+
 ---
 
 ## References
+[^1]: https://pudding.cool/2022/02/women-in-headlines/
 
 1. https://github.com/cjhutto/vaderSentiment
-2. https://pudding.cool/2022/02/women-in-headlines/
 3. https://www.kaggle.com/datasets/snapcrack/all-the-news
