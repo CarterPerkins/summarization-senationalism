@@ -114,6 +114,10 @@ NLTK and certain transformer models may require additional installations. Follow
 
 #### Sentiment Analysis Results
 
+![Inference Times](figures/inference_times.png)
+
+* Red bars signify inference time (in seconds) for the original headlines, while green bars are for the generated headlines.
+
 ![Polarity bar](figures/polarity_bar.png)
 
 * Polarity scores were calculated with the VADER sentiment analysis package.
