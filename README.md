@@ -125,13 +125,13 @@ NLTK and certain transformer models may require additional installations. Follow
 * The bubble sizes above are proportional to the absolute value of the difference in polarity scores. i.e. abs(actual_headline_polarity - generated_headline_polarity).
 * Breitbart, the New York Post and NPR had the highest difference in scores.
 
-![Subjectivity bar](figures/subjectivity_bar.png)
+![Subjectivity bar](figures/subjecitivity_bar.png)
 
 * Subjectivity scores were calculated with the TextBlob sentiment analysis package.
 * The bar chart y axis reflects the deviation between the actual headline subjectivity and the generated headline subjectivity. i.e. (actual_headline_subjectivity - generated_headline_subjectivity).
 * As the generated headlines try to summarise the article, while the original headlines might have more subjective keywords, most of the differences are positive, notably barring the New York Times
 
-![Subjectivity bubble](figures/subjectivity_bubble.svg)
+![Subjectivity bubble](figures/subjecitivity_bubble.svg)
 
 * The bubble sizes above are proportional to the absolute value of the difference in subjectivity scores. i.e. abs(actual_headline_subjectivity - generated_headline_subjectivity).
 * Absolute value differences in the subjectivity scores were quite similar to the polarity scores
