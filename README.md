@@ -114,8 +114,9 @@ NLTK and certain transformer models may require additional installations. Follow
 
 #### Sentiment Analysis Results
 
-![Polarity bar](figures/polarity_bar.png.png)
+![Polarity bar](figures/polarity_bar.png)
 
+* Polarity scores were calculated with the VADER sentiment analysis package.
 * The bar chart y axis reflects the deviation between the actual headline polarity and the generated headline polarity. i.e. (actual_headline_polarity - generated_headline_polarity).
 * Breitbart, Business Insider and the New York Post had the most polar headlines compared to the generated headlines.
 
@@ -126,6 +127,7 @@ NLTK and certain transformer models may require additional installations. Follow
 
 ![Subjectivity bar](figures/subjectivity_bar.png)
 
+* Subjectivity scores were calculated with the TextBlob sentiment analysis package.
 * The bar chart y axis reflects the deviation between the actual headline subjectivity and the generated headline subjectivity. i.e. (actual_headline_subjectivity - generated_headline_subjectivity).
 * As the generated headlines try to summarise the article, while the original headlines might have more subjective keywords, most of the differences are positive, notably barring the New York Times
 
