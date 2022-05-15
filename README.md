@@ -15,7 +15,9 @@ This table descibes the top-level repository structure.
 
 | **Directory** | **Description** |
 | --- | --- |
-| `src/` | Contains source code for fine-tuning summarization models for headline generation, collecting sentiment and polarization data of headlines, and NYU HPC Greene SLURM jobs scripts. |
+| `src/` | Contains source code for fine-tuning summarization models for headline generation, collecting 
+
+and polarization data of headlines, and NYU HPC Greene SLURM jobs scripts. |
 | `figures/` | Contains figures for slides and observations. |
 
 This table describes the repository structure in the source code directory (i.e. `src/`).
@@ -25,7 +27,7 @@ This table describes the repository structure in the source code directory (i.e.
 | `data/` | Contains dataset files. Additionally, has `preprocessing.py` which can be used to generate the train, validation, and test splits. See `data/README.md` for more details. |
 | `out/` | Output directory for SLURM jobs (Not tracked on GitHub). |
 | `summarization/` | Fine-tuning and headline generation scripts. |
-| `sentiment/` | Sentiment scripts. |
+| `sentiment analysis/` | Sentiment scripts. |
 | `jobs/` | NYU HPC Greene SLURM scripts. |
 ---
 
@@ -110,10 +112,34 @@ NLTK and certain transformer models may require additional installations. Follow
 * Median RougeL is noisy which can potentially be partially attributed to the small batch size.
 * Doubling input article size leads to higher and more consistent RougeL scores.
 
+#### Sentiment Analysis Results
+
+![Polarity bar](figures/polarity_bar.png.png)
+
+* The bar chart y axis reflects the deviation between the actual headline polarity and the generated headline polarity. i.e. (actual_headline_polarity - generated_headline_polarity).
+* Breitbart, Business Insider and the New York Post had the most polar headlines compared to the generated headlines.
+
+![Polarity bubble](figures/polarity_bubble.png)
+
+* The bubble sizes above are proportional to the absolute value of the difference in polarity scores. i.e. abs(actual_headline_polarity - generated_headline_polarity).
+* Breitbart, the New York Post and NPR had the highest difference in scores.
+
+![Subjectivity bar](figures/subjectivity_bar.png)
+
+* The bar chart y axis reflects the deviation between the actual headline subjectivity and the generated headline subjectivity. i.e. (actual_headline_subjectivity - generated_headline_subjectivity).
+* As the generated headlines try to summarise the article, while the original headlines might have more subjective keywords, most of the differences are positive, notably barring the New York Times
+
+![Subjectivity bubble](figures/subjectivity_bubble.svg)
+
+* The bubble sizes above are proportional to the absolute value of the difference in subjectivity scores. i.e. abs(actual_headline_subjectivity - generated_headline_subjectivity).
+* Absolute value differences in the subjectivity scores were quite similar to the polarity scores
+
+
 ---
 
 ## References
 [^1]: https://pudding.cool/2022/02/women-in-headlines/
 
 1. https://github.com/cjhutto/vaderSentiment
+2. https://github.com/sloria/TextBlob
 3. https://www.kaggle.com/datasets/snapcrack/all-the-news
