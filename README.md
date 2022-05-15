@@ -15,9 +15,7 @@ This table descibes the top-level repository structure.
 
 | **Directory** | **Description** |
 | --- | --- |
-| `src/` | Contains source code for fine-tuning summarization models for headline generation, collecting 
-
-and polarization data of headlines, and NYU HPC Greene SLURM jobs scripts. |
+| `src/` | Contains source code for fine-tuning summarization models for headline generation, collecting and polarization data of headlines, and NYU HPC Greene SLURM jobs scripts. |
 | `figures/` | Contains figures for slides and observations. |
 
 This table describes the repository structure in the source code directory (i.e. `src/`).
@@ -27,7 +25,7 @@ This table describes the repository structure in the source code directory (i.e.
 | `data/` | Contains dataset files. Additionally, has `preprocessing.py` which can be used to generate the train, validation, and test splits. See `data/README.md` for more details. |
 | `out/` | Output directory for SLURM jobs (Not tracked on GitHub). |
 | `summarization/` | Fine-tuning and headline generation scripts. |
-| `sentiment analysis/` | Sentiment scripts. |
+| `sentiment_analysis/` | Sentiment scripts. |
 | `jobs/` | NYU HPC Greene SLURM scripts. |
 ---
 
